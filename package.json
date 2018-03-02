@@ -11,5 +11,8 @@
     "url": "\u0016https://github.com/NewAara/rose.git"
   },
   "author": "Aara\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[C",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "express": "^4.16.2"
+  }
 }
