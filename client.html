@@ -1,0 +1,1349 @@
+<!doctype html><html><head id='head'><meta charset='utf-8'><style>var
+html,body{margin:0;padding:0;}
+[contenteditable=true] {
+	padding:4px;
+	border-bottom: 1px solid rgba(0,0,0,0);
+	transition: border-color 1s;
+}
+.empty:empty:before,[contenteditable=true]:empty:before{
+	content:attr(name);
+	opacity:.7;
+	padding:4px;
+}
+[contenteditable=true]:focus{
+	outline:none;
+	border-bottom: 1px solid black;
+}
+.link{
+	text-decoration:underline;
+}
+.link:hover{
+	cursor:pointer;
+}
+.menu {
+	float: left;
+	min-height: 100%;
+	max-width:200px;
+	overflowY:scroll;
+	overflowX:hidden;	
+}
+.presentation {
+	padding: 20px;
+}
+.section {
+	width:100%;
+}
+</style></head><body id='root'></body><script src='https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js'></script><script>var
+_ = {
+  // iterate over all properties in an object
+  e: function(obj, func) {
+    if(!obj) return ;
+    var fields = Object.entries(obj);
+    for(var i = 0, l = fields.length; i<l; i++) {
+      var o = fields[i];
+      if(func(o[1], o[0]) === "break") return ;
+    }       
+  },
+  // copies over everything in 'options' 
+  // to the 'standard' object,
+  // pass in opts{copy:true} to make it so that
+  // the standard itself is not changed,
+  // good for assigning default values using:
+  // _.x(defaults, options);
+  x: function(standard, options, opts) {
+    var result = (opts&&opts.copy) ? {} : standard;
+    _.e(options, function(value,prop) {
+      if(opts && opts.deep && typeof value === "object" && typeof result[prop] === 'object') {
+        _.x(result[prop], value, {deep:true});
+      } else {
+        result[prop] = value;
+      }
+    });
+    return  result;
+  },
+  range: function(start,end,f) {
+    if(start > end)
+    for(var i = start; i <= end; i++) f(i);
+    else 
+    for(var i = start; i >= end; i--) f(i);
+  },
+  // takes a class and runs each of the functions in opt {
+  //    method: parameter,  
+  // }
+  // assumes methods with one parameter
+  run: function(T,opt) {
+    _.e(opt, function(value,name) {
+      if(typeof T[name] === "function") T[name](value);
+    });
+  },
+  text: function(message) { return  document.createTextNode(message); },
+  // version of array.push that initializes an array if it doesn't
+  // already exist in the object
+  push: function(obj,i,value) {
+    if(!obj[i]) obj[i] = []; obj[i].push(value);
+  },
+  // creates an object in 'parent' if it doesn't already exist
+  obj: function(parent,name,content) {
+    if(!parent[name]) parent[name] = content?content:{}; 
+    return  parent[name];
+  },
+  array: function(value) {
+    return  Array.isArray(value) ? value : (value?[value]:[]);
+  },
+  // shorthand for var = obj[prop]?obj[prop]:another[prop];
+  w: function(prop, preferred, fallback) {
+    return  preferred[prop]?preferred[prop]:fallback[prop];
+  },
+  split: function(text,into,by) {
+    var result = {},
+        fields = _.csv(into),
+        parts = _.csv(text,by);
+    _.e(fields, function(field, i) {
+      result[field] = parts[i];
+    });
+    return  result;
+  },
+  str(arr,start,end) {
+    return  arr.slice(start?start:0,end).join(' ');
+  },
+  nospace: function(text) {
+    return  text.replace(/\s/g,'');
+  },
+  word: function(text, f, rest) {
+    var i = text.indexOf(' '),
+        w = text.slice(0,i);
+    if(f) f(w);
+    if(rest) rest(text.slice(i+1));
+    return  w;
+  },
+  parse: function(text,pattern) {
+    var str = text,
+        parse = [],
+        pi = 0, plen = pattern.length,
+        exp = pattern[pi];
+    while(str.length>0) {
+      var i = str.search(exp);
+      if(i === -1) {
+        parse.push(str);
+        break;
+      }
+      parse.push(str.slice(0,i));
+      str = str.slice(i);
+      if(++pi >= plen) { pi = 0; }
+    }
+    return  parse;  
+  },
+  copy: function(obj, opt) {
+    var o = _.x({shallow:false,just:null},opt), 
+      result = Array.isArray(obj) ? [] : {};
+    _.e(obj, function(value, field) {
+      if(o.just && !o.just[field]) return ;
+      if(typeof value === "object") {
+        result[field] = o.shallow ? value : _.clone(value);
+      } else {
+        result[field] = value;
+      }
+    });
+    return  result;
+  },
+  map: function(list, func) {
+    var results = Array.isArray(list)?[]:{};
+    _.e(list, function(v,i) {
+       results[i]=func(v,i);
+    });
+    return  results;
+  },
+  has: function(obj, values) {
+    var diff = false;
+    _.e(values, function(val, prop) {
+      if(diff) return ;
+      if(typeof val === "object") {
+        if(!_.has(obj[prop], val)) diff = true;
+      } else {
+        if(obj[prop] !== val) diff = true;
+      }
+    });
+    return  !diff;
+  },
+  same: function(obj1, obj2) {
+    return  _.has(obj1,obj2) && _.has(obj2,obj1);
+  },
+  filter: function(list, func) {
+    var filtered = Array.isArray(list)?[]:{};
+    _.e(list, function(item) {
+      if(func(item)) filtered.push(item);
+    });
+    return  filtered;
+  },
+  contains: function(list, item) {
+    for(var i = 0, l = list.length; i < l; i++) {
+      if(list[i] === item) {
+        return  true;
+      }
+    }
+    return  false;
+  },
+  async: function(list, handler, cb) {
+    var count = list.length,
+        results = [],
+        then = function(i, result) {
+          results[i] = result;
+          if(--count <= 0) {
+            cb(results);
+          }
+        };
+    list.forEach(function(item, i) {
+      handler(item, then.bind(list, i));
+    });
+  },
+  save_js: function(obj) {
+    var str = '{', type, val;
+    _.each(obj, function(field, name) {
+      type = typeof field;
+      if(type === "object") {
+        val = _.save_js(field);
+      } else
+      if(type === "F") {
+        val = field.toString();
+      } else {
+        val = field;
+      }
+      str += field+':'+val+',';
+    });
+    return  str + '}';
+  },
+  csv: function(list,delimiter) {
+    return  list.split(delimiter?delimiter:',');
+  },
+  no: function(e) { e.preventDefault(); },
+},
+C = function(init, methods) {
+    _.x(init.prototype, methods);
+    return  init;
+},
+Order = C(function(i){ var T = this; 
+    T.start = T.end = T.focus = null;
+    if(i) T.first(i);
+    T.size = 0;
+},{
+    first: function(i) { var T = this, n=T.start;
+        if(!T.start) i.ordernode = T.focus = T.start = T.end = {0:i}; else {
+            T.focus = T.start = T.start[-1] = {0:i,1:T.start};
+        }
+        ++T.size;
+    },
+    last: function(i) {
+        var T = this, b=T.end; i.ordernode=T.focus=T.end={0:i}; T.end[-1]=b;
+        if(b) b[1]=T.end;
+        if(!T.start) {
+            T.start = T.end;
+        }
+        ++T.size;
+    },
+    del: function(node) {
+        var T = this; if(T.size === 0) return ;
+        var f = node?node:T.focus, t = f[1], a = f[-1];
+        T.link(a,t);
+        delete f[0];
+        T.focus = a?a:t;
+        if(!T.focus) { T.start = T.end = null; }
+        --T.size;
+    },
+    place: function(i,af) { var T = this, f = af?af:T.focus;
+        if(f) {
+            var ff = f[1], n = {0:i,1:ff}; n[-1]=f;
+            i.ordernode = f[1] = T.focus = n;
+            if(f===T.end) {T.end = n;}
+            else if(ff) ff[-1] = n;
+            ++T.size;
+        } else { T.first(i); }
+    },
+    insert: function(i,b4) { var T = this, f = b4?b4:T.focus;
+        if(f) {
+            var o = f[-1], n = {0:i,1:f}; n[-1]=o;
+            i.ordernode = f[-1] = T.focus = n;
+            if(f===T.start) {T.start = n}
+            else o[1] = n;
+            ++T.size;
+        } else { T.first(i) };
+    },
+    remove: function(i) {
+        var T = this, n=T.i, l;
+        if(i) while(n) {
+            if(n[0] === i) {
+                if(l) { T.link(l,n[1]); --T.size; break; }
+            }
+            l = n;
+            n = n[1];
+        }
+        return  n;
+    },
+    concat: function(order) {var T = this; 
+        if(T.end) T.link(T.end, order.start); 
+        else T.start = T.end = T.focus = order.start;
+        T.size += order.size;
+    },
+    shift: function(where) { 
+        var T = this, f = T.focus,
+        o = f[typeof where === "number" ? where : T.dict[where]]; 
+        T.focus = o?o:f; return  T.focus;
+    },
+    link: function(a,b,dir) {
+    	var T = this, one, two;
+    	if(!dir || dir === 1) { one = a; two = b; }
+    	else { one = b; two = a; }
+    	if(one) one[1] = two; else T.start = two;
+    	if(two) two[-1] = one; else T.end = one;
+    },
+    move: function(where) {
+    	var T = this, f = T.focus,
+    	to = typeof where === "number" ? where : T.dict[where], opp = -to, 
+    	o = f[to], oo = o?o[to]:null, ff = f[opp];
+    	if((to === 1 && f === T.end) || (to === -1 && f === T.start)) return ;
+    	//console.log("oo",prnt(oo),"o",prnt(o),"f",prnt(f),"ff",prnt(ff));
+    	_.e([[f,o],[oo,f],[o,ff]], function(p) { T.link(p[0],p[1],opp); });
+    },
+    e: function(f,dir) {var T = this; T.ef(f,T.i,dir); },
+    ef: function(f,fi,dir) { var T = this, i=0, n=fi?fi:T.start, d=dir?dir:1;
+        while(n) {
+            if(f(n[0],i)) return  n;
+            n=n[1]; i+=d;
+        }
+    },
+    dict: {
+        under: 1, over: -1, 
+        right: 1, left: -1, here: 0,
+        down: 1, up: -1,
+        '↓': 1, '↑': -1,
+        after: 1, before: -1, o: 0,
+        next: 1, prev: -1, item: 0,
+	    forward: 1, back: -1,
+    },
+}),
+keycode = {
+  '⌫': 8, backspace: 8,
+  '⇥': 9, '⇆': 9, tab: 9,
+  '↩': 13, 'return': 13, enter: 13, '⌅': 13,
+  'pause': 19, 'pause-break': 19,
+  '⇪': 20, caps: 20, 'caps-lock': 20,
+  '⎋': 27, escape: 27, esc: 27,
+  space: 32,
+  '↖': 33, pgup: 33, 'page-up': 33,
+  '↘': 34, pgdown: 34, 'page-down': 34,
+  '⇟': 35, end: 35,
+  '⇞': 36, home: 36,
+  ins: 45, insert: 45,
+  del: 46, 'delete': 46,
+  '←': 37, left: 37, 'arrow-left': 37,
+  '↑': 38, up: 38, 'arrow-up': 38,
+  '→': 39, right: 39, 'arrow-right': 39,
+  '↓': 40, down: 40, 'arrow-down': 40,
+  '*': 106, star: 106, asterisk: 106, multiply: 106,
+  '+': 107, 'plus': 107,
+  '-': 109, subtract: 109,
+  ';': 186, semicolon:186,
+  '=': 187, 'equals': 187,
+  ',': 188, comma: 188,
+  '.': 190, period: 190, 'full-stop': 190,
+  '/': 191, slash: 191, 'forward-slash': 191,
+  '#': 192, tick: 192, 'back-quote': 192,
+  '[': 219, 'open-bracket': 219,
+  '\\': 220, 'back-slash': 220,
+  ']': 221, 'close-bracket': 221,
+  '\'': 222, quote: 222, apostraphe: 222,
+  'of': function(e) { var k = e.which?e.which:e.keyCode; return  keycode[k];},
+  letter: function(e) { return  String.fromCharCode(e.which?e.which:e.keyCode)},
+},
+i = 95, n = 0;
+while(++i < 106) {
+    keycode['num-' + n] = i;
+    ++n;
+}
+i = 47, n = 0;
+while(++i < 58) {
+    keycode[n] = i;
+    ++n;
+}
+i = 111, n = 1;
+while(++i < 136) {
+    keycode['f' + n] = i;
+    ++n;
+}
+i = 64;
+while(++i < 91) {
+    keycode[String.fromCharCode(i).toLowerCase()] = i;
+} var ra,
+eventypes = [
+  "click","dblclick",
+  "mousedown","mouseup","mousemove","mouseover","mouseleave",
+  "dragstart","dragover","drop","copy","paste",
+  "keyup", "keydown","keypress",
+  "focus","blur","change","scroll","select","selectstart","resize"
+],
+El = C(function(html, opts) {
+  var T = this;
+  T.el = (typeof html === "string" || !html) ? 
+      (html && html[0] === '#') ? 
+          document.getElementById(html.substring(1)) :
+          document.createElement(html ? html : "div")
+      : (html instanceof El) ? html.el : html;
+  T.set(opts);
+},{
+  set: function(opts) { var T = this; _.run(T,opts); },
+  attr: function(attrs) { var T = this;
+    _.e(attrs, function(a, name) {
+      T.el.setAttribute(name, a);
+    });
+  },
+  editable: function(bool) { var T = this;
+    if(bool) T.attr({contenteditable:(bool?"true":false)});
+  },
+  field: function(name) { var T = this;
+    T.editable(true);
+    T.attr({name:name});
+  },
+  into: function(el, before) {
+    var T = this, tel = new El(el);
+    tel.insert(T.el, before);
+    return  tel;
+  },
+  html: function(text) { var T = this; 
+    if(typeof text === "string") T.el.innerHTML = text; 
+    else return  T.el.innerHTML;
+  },
+  addClass: function(cl) {
+    var T = this, classes = T.el.className.split(' ');
+    if(!_.contains(classes, cl)) T.el.className +=' '+cl;
+  },
+  removeClass: function(cl) {
+    var T = this, classes = _.filter(T.el.className.split(' '), function(name) {
+      return  name !== cl;  
+    });
+    T.el.className = classes.join(' ');
+  },
+  toggleClass: function(cl) {
+    var T = this,
+    classes = T.el.className.split(' ');
+    if(_.contains(classes, cl)) {
+      T.removeClass(cl);
+    } else {
+      T.addClass(cl);            
+    }
+  },
+  insert: function(other, before) {
+    var T = this,
+    other_el = new El(other);
+    if(before) {
+      var bel = new El(before);
+      T.el.insertBefore(other_el.el, bel.el);
+    } else {
+      T.el.appendChild(other_el.el);
+    }
+    other_el.up = T;
+    return  other_el;
+  },
+  remove: function(child) {
+    var T = this, c = new El(child); T.el.removeChild(child.el);
+  },
+  style: function(styles) {
+    _.x(this.el.style, styles);
+  },
+  getstyle: function(prop) { var T = this;
+    return  window.getComputedStyle(T.el, null)
+    .getPropertyValue(prop);
+  },
+  on: function(eventmap) { var T = this;
+    _.e(eventmap, function(handler, trigger) {
+      if(_.contains(eventypes, trigger)) {
+        T.el.addEventListener(trigger, handler.bind(T));
+      } else {
+        var parts = trigger.split('++'),
+        mods = (parts.length>1) ? parts.slice(0,parts.length-1) : [],
+        key = parts[parts.length-1];
+        T.el.addEventListener("keydown",function(e){
+          var modded = true, code = e.which?e.which:e.keyCode;
+          _.e(mods,function(m){ if(!e[m+"Key"]) modded = false; } );
+          if(modded && keycode[key]===code) {
+            handler.call(T,e);
+          }
+        });
+      }
+    });
+  },
+  focus: function() { this.el.focus(); },
+  prev: function() {var T = this, sib=T.el.previousSibling; 
+    if(sib) { sib.focus(); return  sib; }
+  },
+  next: function() {var T = this, sib=T.el.nextSibling; 
+    if(sib) { sib.focus(); return  sib; }
+  },
+  width: function() { return  this.el.offsetWidth; },
+  height: function() { return  this.el.offsetHeight; },
+  rect: function() { var T = this, r = T.el.getBoundingClientRect(); 
+    return  new Rect(r.left, r.top, r.width, r.height);
+  },
+  top: function() { return  this.rect().top; },
+  bottom: function() { return  this.rect().bottom; },
+  center: function() { 
+    var r = this.rect(); 
+    return  [(r.bottom - r.top)/2, (r.right - r.left)/2];
+  },  // convenience
+}), E = function(html,opts) {return  new El(html,opts); },
+HTML = C(function(root, opts) { var T = this;
+    T.order = new Order();
+    T.root = new El("div", {into:root}); 
+    _.x(T,_.x({
+        elopts: {},
+        eltype: "div",
+        gen: function(text,el) { el.html(text); },
+    }, opts));
+    _.x(T.elopts, {into: T.root});
+},{
+    make: function(text) { var T = this, el = new El(T.eltype, T.elopts); T.gen(text,el); return  el; },
+    run: function(f,i,arg,andfocus) { var T = this, el = T.make(i); 
+        T.order[f](el,arg); T.update(); 
+        if(andfocus)el.focus(); 
+        return  el; 
+    },
+    update: function() { var T = this, f = T.order.focus, n = f[1]; 
+        T.root.insert(f[0],n?n[0]:null); 
+    },
+    cascade: function(f, delay, first, direction) {
+        var T = this; T.order.ef(function(item,i) {
+            f(item,i);
+            setTimeout(f.bind(T,el,item,i),(delay?delay:100)*i);
+        },first,direction);
+    },
+    del: function(node) { var T = this, f = node?node:T.order.focus, el = f[0]
+        T.root.remove(el); 
+        T.order.del(f);
+        return  el;  
+    },
+    concat: function(order) {var T = this, els = [];
+        order.e(function(i) {
+            var el = T.gen(i); els.push(el);
+            T.root.insert(el);
+        }); T.order.concat(els);
+	   return  els;
+    },
+    shift: function(where) { var T = this, 
+	   f = T.order.shift(where);
+       T.p('end shift');
+       f[0].focus();
+       return  f;
+    },
+    move: function(where) { var T = this;
+    	T.order.move(where);
+    	T.update();
+    },
+    focuson: function(node) { var T = this; T.order.focus = node; node[0].focus(); },
+    p: function(msg,node) { var T = this; console.log(msg?msg:'', (node?node:T.order.focus)[0].html())},
+    e: function(f,dir) {var T = this; T.ef(f,T.i,dir); },
+    ef: function(f,fi,dir) { var T = this, i=0, n=fi?fi:T.order.start, d=dir?dir:1;
+        while(n) {
+            if(f(n[0],i,n)) return  n;
+            n=n[1]; i+=d;
+        }
+    },
+    value: function(of) { return  of[0].html(); },
+});
+_.e(_.csv("first,last,place,insert"), function(method) { 
+	HTML.prototype[method] = function(i,arg,andfocus){return  this.run(method,i,arg,andfocus);};
+}); var rav,
+Crypt = C(function(login){
+    var T = this;
+    T.key = []; 
+    T.index = [];
+    if(login) T.init(login);
+},{
+read: function(msg) {
+ var T = this, truth = [];
+ _.e(msg, function(byte, i) {
+      truth[i] = T.index[byte];
+ });
+ return  T.toUTF8(truth);
+},
+write: function(msg) {
+    var T = this, truth = T.fromUTF8(msg),
+        code = [];
+    _.e(truth, function(byte, i) {
+     code[i] = T.key[byte];
+    });
+    return  code;
+},
+init: function(key) {var T = this; 
+for(var i = 0; i < 256; i++) {
+      T.key[i] = i;
+    }
+var shift = T.fromUTF8(key), inc = 0, swaps = 256;   
+for(var i1 = 0; i1 < shift.length; i1++) {
+  
+for(var i2 = shift[i1]; i2 < 256; i2++) {
+        
+    var p1 = shift[i1] + inc;
+    if(p1 >= 256) p1 -= 256;
+         
+    p2 = T.key[p1];
+for(var i3 = 0; i3 < p2; i3++) {
+for(var i4 = 0; i4 < 256; i4++) {
+    inc += T.key[p2]; 
+if(inc >= 256) inc -= 256;
+    p2 += T.key[inc]; if(p2 >= 256) p2 -= 256;                        
+    tmp = T.key[p2];     
+    T.key[p2] = T.key[inc];       
+    T.key[inc] = tmp;
+}
+}   
+}   
+}
+    
+_.e(T.key, function(byte, i) {
+  T.index[byte] = i;
+ });
+},
+toUTF8: function (array) {
+      var es= String.fromCharCode.apply(null, array),
+          ds= 
+decodeURIComponent(escape(atob(es)));
+      return ds;
+  },
+  
+fromUTF8: function(string) {
+    var text = btoa(unescape(encodeURIComponent(string))),
+      
+charList = text.split(''),
+      array = [];
+    for(var i = 0; i < charList.length; i++) {    
+array.push(charList[i].charCodeAt(0));
+      }
+      return new Uint8Array(array);
+  },
+}),
+Com = C(function(author) { var T = this;
+	T.author = author;
+	T.ids = null;
+},{
+	newid: function() {
+		return  T.author+'-'+(++T.ids);
+	},
+	keep: function(el,callback) { var T = this;
+		if(!el.id) el.id = T.newid(); 
+		el.on({blur: function(e){
+			var V = this, data = T.author+'-'+el.id+'\n'+
+					  el.name()+'\n'+
+					  el.html();
+			T.com(data,callback);
+		}});
+	},
+	req: function(method,url,type,data,then) {
+		xhr = new XMLHttpRequest();
+		xhr.open(method,url,true);
+		xhr.setRequestHeader('Content-Type', type);
+		xhr.onload = function() { var V = this;
+		    if (V.status == 200) {
+		    	if(then) then(V.responseText);
+		    }
+	  	};
+	  	console.log("sending",data);
+	  	xhr.send(data);
+	},
+	get: function(url,type,data,then) {this.req("GET",url,type,data,then)},
+	post: function(url,type,data,then) {this.req("POST",url,type,data,then)},
+	com: function(data,then) {this.post("/com",'text/plain',data,then)},
+	page: function(name,then) {this.get('/page/'+name,'text/plain',then)},
+}),
+Anim = C(function(){ var T = this;
+  // use to smoothly present changes to an object
+  // setup like this:
+  //
+  // var 
+  // anim = new Anim();
+  // el = new El("div"), 
+  // a = anim.a({opacity:0,fontSize:"12px"},function(){el.style(this);});
+  // 
+  // then, call something like
+  //
+  // anim.trans(a,{
+  //  opacity:{
+  //   to:1,
+  //   speed:.1,
+  //   then: function(){to be executed upon completion}
+  //  },
+  //  fontSize:{
+  //    to:25, // will automatically add "px"
+  //    // default speed is .33
+  //  }
+  // });
+  //
+  // to smoothly transition
+  // instead of values, an easing function
+  // can be provided, ex:
+  //
+  // a = anim.a({opacity: function(n){return  n*n;}, function(){el.style(this)});
+	T.anims = {}; T.fresh = {}; T.none = {}; T.exec = {};
+	T.ids = 0; T.kids = 0; 
+	T.fs = 0;
+	T.mo = false;
+  T.defaults = {};
+},{
+  a: function(el,f,now) { var T = this; id=el.fid?el.fid:T.fs++;
+    el.fid = id;
+    if(f instanceof El) {var l = f; f = function(){l.style(this)}}
+    return  function(set) {
+      if(!set) return  el; else {
+        var retry = setInterval(function(){
+          if(!el.lock) {
+            _.e(set,function(v,n) {
+              if(typeof el[n] === "function") {
+                el[n](v);
+              } else {
+                el[n] = v;     
+              }
+            });
+            if(now) now.bind(el)();
+            T.exec[el.fid] = f.bind(el);
+            clearInterval(retry);
+          }
+        },1);
+      }
+    };
+  },
+  defaultspeed: function(prop) {
+    var T = this, def = T.defaults[prop];
+    return  def?def:.33;
+  },
+	trans: function(a,set) {
+    var T = this, el = a(), id = el.aid?el.aid:T.ids++;
+    _.e(set,function(v,prop) { var
+		  now = el[prop],
+      from = parseFloat(now),
+      to = parseFloat(v.to),
+      dir = (to-from) > 0 ? 1:-1,
+      suffix = (typeof now === "string") ? 
+      	now.replace(from+'',''):0,
+      check = from<v.to ? 
+       function(value) { return  value>to; } : 
+       function(value) { return  value<to; } ,
+      modify = v.f?v.f:function(b){return  b};
+	    if(el.anims) ++el.animc;
+	    else { 
+	    	el.animc=1;
+	    	el.anims={};
+	    }
+	    el.anims[prop] = {
+	      m: modify,
+	      c: dir*(v.speed?v.speed:T.defaultspeed(prop)),
+	      v: from,
+	      s: suffix,
+	      ch:check,
+	      to:to,
+        cb:v.then,
+	    };
+	    el.aid = id;
+	    T.anims[el.aid] = a;
+    });
+  },
+  change: function(a,dt) { var T = this, el = a(), e = {};
+    _.e(el.anims, function(v,prop) {
+      var d = v.c*dt;
+      v.v += d;
+      if(v.ch(v.v)) {
+        e[prop] = v.m(v.to,true)+v.s;
+        delete el.anims[prop]; --el.animc;
+        if(v.cb) v.cb();
+      } else {
+        e[prop] = v.m(v.v)+v.s;
+      }
+    });
+    a(e);
+    return  (el.animc > 0);
+  },
+	start: function() { var T = this; 
+		T.t = Date.now();
+		T.going = true;
+		T.loop();
+	},
+	stop: function() { var T = this; T.going = false; },
+	loop: function() {
+		var T = this, t = Date.now(), dt = t - T.t; T.t = t;
+		_.e(T.none, function(f,id) { f(dt); delete T.none[id]; });
+		_.e(T.anims, function(a,id) {
+			if(!T.change(a,dt)) delete T.anims[id];
+		});
+		_.e(T.exec, function(f,id) {
+			f(dt); delete T.exec[id];
+		});
+		if(T.going) requestAnimationFrame(T.loop.bind(T));
+	},
+});
+(function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] 
+                                   || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
+ 
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); }, 
+              timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+ 
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+}()); var sad,
+styles = {
+	storedstyles: {},
+	style: function(text) {
+		var T = this, s = _.split(text,'content,styles','|'),
+			stext, stype, styling = '', stored;
+		_.e(s.styles.split(';'), function(style){
+			stext = style.trim().replace(/\:/g,' ').split(' ');
+			if(stext[0] === 'like') {
+				stored = T.storedstyles[_.str(stext,1)];
+				styling += stored?(stored+';'):'';
+			} else {
+				styling += stext[0]+':'+_.str(stext,1)+';';
+			} 
+		});
+		T.storedstyles[s.content] = styling;
+		return  s.content.startsWith('.') ? 
+			T.css(s.content+'{'+styling+'}') :
+			tag("span",s.content,{style:styling});
+	},
+	i: function(text) { return  tag('i',text) },
+	b: function(text) { return  tag('b',text) },
+	'^': function(text) { return  tag('sup',text); },
+	'v': function(text) { return  tag('sub',text); },
+	a: function(text) {
+		var parts = text.split("|")
+		return  tag('a',parts[0],{
+			href: parts[1],
+		});
+	},
+	br: function(px) { return  tag("div",'',{style:"height:"+px+"px"}); },
+	css: function(text) { return  tag("style",text.replace(new RegExp('<br>','g'),'')); },
+//	cite: function(text) { 
+//		var i = ++footer.notes,
+//				parts = text.split("|"), 
+//				note = { into: footer };
+//		if(parts.length > 2) {
+//			note.html = i+": "+parts[0]+' | '+styles.a(parts.slice(1).join('|'))
+//		} else {
+//			note.html = i+": "+styles.a(parts.join('|'))
+//		}
+//		new El("div",note);
+//		return  tag("sub",'['+styles.a(i+'|'+parts[parts.length-1])+']');
+//	},
+	fonts: function(text) {
+		var fonts = text.split(',');
+		WebFont.load({
+			google: {
+				families: fonts,
+			}
+		});
+		return  '';
+	},
+	header: function(text) {
+		var s = _.split(text,'content,level','|');
+		return  tag("div",text,{
+			class: "header",
+			id: text,
+		});
+	},
+	table: function(text) {
+		var lines = text.split(/\r\n|\n/),
+				out = '';
+		_.e(lines, function(line) {out += styles.row(line)});
+		return  tag("table",out);
+	},
+	row: function(text) {
+		var cols = text.split('|'),
+				out = '';
+		_.e(cols, function(col) {out += tag("td",col)});
+		return  tag("tr",out);
+	},
+	list: function(text) {
+		var lines = text.split("<br>"),
+				out = '', type, isitem;
+		_.e(lines, function(line) {
+			console.log("-",line);
+			type = "list-item"; isitem = false;
+			if(line.startsWith('O ')) {
+				type = "list-header";
+				isitem = true;
+			}
+			if(isitem || line.startsWith('o ')) {
+				out += tag("tr",
+					tag("td",'',{class:"list-bullet"})+tag("td",line.slice(2)),
+					{class:type});
+			} else {
+				out += styles.row("|"+line);
+			}
+		});
+		return  tag("table",out,{class:"list"});
+	},
+	fitpage: function(text,then) {
+		var el = new El("span",{
+			html: text,
+		});
+		then();
+		return  ;
+	},
+	section: function(text) {
+		var s = _.split(text,"title,brief,content",'|'),
+				id = '#"+s.title+"-content',
+				out = styles.header(s.title) + tag("div", s.brief);
+				out = tag("div", out, {
+					onclick: "show('"+id+"')",
+				});
+				out += tag("div", s.content,  {
+					id: id,
+					style: "display:none;",
+				});
+				menu.header(s.title);
+		return  out;
+	},
+	line: function(text) {
+		return  tag("div",'',{
+			style:"border:1px solid "+(text?text:"#666")
+		});
+	},
+	header: function(text) {
+		return  tag("h2",text,{
+			class: "header",
+		});
+	},
+	form: function(text, then) {
+		var s = _.split(text,"name,placeholder",'|');
+		el = new El("span",{
+			placeholder: s.placeholder?s.placeholder:s.name,
+			on: {
+				change: function(e) {
+					console.log("sending","T.context"+'\n'+s.name+":"+el.html());
+					//T.com(T.context+'\n'name+":"+el.el.innerHTML);
+				}
+			}
+		});
+	},
+	webtitle: function(text) {
+		var el = new El("#title");
+		if(!el.el) {
+			new El("title", {
+				into: "#head",
+				html: text,
+				id: "title",
+			});
+		} else {
+			el.html(text);
+		}
+		return  '';
+	},
+	schedule: function(text, then) {
+		var s = _.split(text,"times,taken",'|');
+				stamp = Date.now(),
+				id = "schedule-"+stamp,
+			  el = new El("div", {
+
+			  });
+		then(function(){this.el.into("#"+id);},{el:el});
+		//then(place("el",id));
+		return  tag("schedule",'',{id:id});
+	},
+	size: function(text) {
+		var s = _.split(text,"size,content",'|');
+		return  tag("span",s.content,{style:"font-size:"+s.size+'px;'});
+	},
+	'in': function(text) {
+		console.log("in",text);
+		return  tag("span",'',{name:text,contenteditable:"true",class:"input"});
+	},
+	brackets: function(text) { return  '['+text+']';},
+	div: {
+		center: true,
+		page: true,
+		header: true,
+		title: true,
+		line: true,
+	}
+},
+tag = function(name, text, attr) {
+		var out = "<"+name;
+		if(attr) _.e(attr,function(content,prop) {
+			out += ' '+prop+"='"+content+"'";
+		})
+		return  out+">"+text+"</"+name+">";
+	},
+Form = C(function(into) { var T = this;
+	T.forms = new HTML(into, {
+		gen: function(text,el) {T.newform(text,el);},
+	});
+	T.focus = null;
+},{
+	newform: function(init,into) { var T = this, lines = init.split('\n'),
+		first = lines[0].split(':'), label, type;
+		if(first.length === 2) {
+			label = first[0]; type = first[1];
+		} else {
+			label = ''; type = first[0];
+		}
+		return  {
+			label: new El('span',{field:'<',html:label,into:into}),
+			':': new El('textnode',{html:':',addClass:'colon'}),
+			type: new El('span',{field:'type',html:type,}),
+			fields: new HTML(into, {
+				gen: function(text,el) { 
+					if(text.endsWith('..')) {
+						new HTML(el,{
+							elopts: {
+								on: {
+									'↓': function(e){_.no(e); },
+									'↑': function(e){_.no(e); },
+								}
+							}
+						})
+					} else {
+						el.field(text); 
+					}
+				},
+				elopts: {
+					on: T.events(),
+				},
+			}),
+		};
+		_.e()
+	},
+	events: function() {
+		var T = this, evs = {}; _.e([
+			['enter',1],
+			['↓',1],
+			['↑',-1],
+			['tab',1],
+			['shift++tab',-1],
+			
+			], function(e) {evs[e[0]] = moveinform(T,e[1])}
+		);
+		return  evs;
+	},
+	shift: function(e,V,dir) { _.no(e);
+		var T = this, to = V.ordernode[dir], f = T.form;
+		if(!to) {
+			T.form = T.forms.shift(dir);
+			if(T.form !== f) {
+				if(dir === 1) {
+					to = T.form.start;
+				} else {
+					to = T.form.end;
+				}
+			}
+		}
+		to[0].focus();
+		T.form.order.focus = to;
+	},
+}), moveinform = function(T,dir) { return  function(e) { T.shift(e,this,dir); } },
+Essay = C(function(into,com){ var T = this;
+	T.com = com;
+	T.mainmenu = {
+		el: new El('div',{into:into,style:{
+			borderBottom: '1px solid black',
+		}}),
+	};
+	_.x(T.mainmenu, {
+		file: new El('span',{into:T.mainmenu.el,field:'file name',style:{
+			display: 'inline',
+			minWidth: '100px',
+		}}),
+		site: new El('a',{into:T.mainmenu.el,html:'↓ site',addClass:'download',on:{
+			click: function(e) {
+				T.download(file.html());
+				T.download.site.attr({
+				href:"data:text/plain;charset=utf-8,"+T.compile(),
+					download:"thoughts."+Date.now()+".txt",
+				});
+			},
+		}}),
+	});
+	T.index = {}; // map page titles to ids
+	T.pages = {};
+	T.editing = null;
+	T.body = new El("div",{into:into,style:{padding:'20px'}});
+	
+	T.title = new El('div',{into:T.body,field:'title',addClass:'title'});
+	T.root = new El(into);
+	T.head = new El('#head');
+	T.menu = new El("div",{into:T.body,
+		addClass:'menu',
+		float: 'left',
+	});
+	T.editor = new El("div",{into:T.body,
+		addClass:'editor',
+		style:{float:'left'},
+	});
+	T.view = new El("div",{into:T.body,
+		addClass:'presentation',
+		style:{float:'left',border:'3px solid black'},
+	});
+	var w = T.menu.width();
+	_.e([T.editor,T.view],function(el) {
+		el.a = anim.a({left:w+'px',width:'0px'},function(){el.style(this)});
+		w += el.width();
+	});
+	_.e([
+		['intro','introduction: write a single paragraph that introduces all of the pages in this doc'],
+		['outro','conclusion: reintroduce all of the top-level pages, inviting readers to read further'],
+		], function(el) {
+		T.pages[el[0]] = T[el[0]] = new Page(T.newid(),T.editor,{
+			title: el[0],
+			line: {
+				addClass:el[0],
+			},
+			view: {
+				into: T.view,
+				addClass: 'section',
+				name:el[1]+'; ctrl+click to edit',
+				on: {
+					click: function(e) {
+						if(e.ctrlKey) {
+							T.edit(T.pages[el[0]]);
+						}
+					},
+ 				}
+			},
+		});
+	});
+	T.outro.root.style({borderTop:'1px solid #ddd'});
+
+	T.css = new El("style",{into:'#head'});
+	T.style = new Page(T.newid(),'style',T.editor,{
+		compile: function(text) {
+			var V = this, out = V.parse(text);
+			if(out) T.css.html(out);
+			return  '';
+		},
+	});
+	// XXX check this
+	document.onresize = function(){T.format()};
+	T.format();
+},{
+	edit: function(page) {
+		anim.trans(T.editor.a, {opacity:{
+			to: 0,
+			then: function() {
+				if(T.editing) T.editor.remove(T.editing);
+				T.editing = page;
+				T.format(function(){
+					T.editor.insert(page.root);
+					anim.trans(T.editor.a, {
+						opacity:{to:1},
+					});					
+				});
+			}
+		}});
+	},
+	pageopts: {
+
+	},
+	clean: function() { var T = this; T.css.html(''); },
+	newid: function() {
+		var T = this; return  T.author+'-'+T.ids++;
+	},
+	makelink: function() {
+		var T = this, selection = T.selected(), link,
+		text = selection.extractContents();
+		if(text) {
+			ids = T.index[text];
+			// XXX for multiple pages with same title,
+			// present list of titles to choose
+			// with callback that resolves to this
+			link = _.text('`link['+ids[0]+'|'+text+']');
+			selection.insertNode(link);
+			return  true;
+		} 	return  false;
+	}, 
+	open: function(id) {
+		var T = this, page = T.pages[id];
+		if(!page) {
+			page = T.pages[id] = new Page(T.newid(),T.root, {
+				elopts: {
+					on: {
+						click: function(e) { var V = this; 
+							T.focus = page.order.focus = V; 
+						},
+						backspace: function(e) { var V = this;
+							if(V.html() === '') {
+								page.remove(V.ordernode);
+							}
+						},
+					},
+					field: '> '+title,
+				},
+			});
+			page.first();
+			page.id = T.author+T.ids++;
+		}
+		T.show(page); 
+	},
+	show: function(page) { var T = this; 
+//		box = new El('div');
+//		page.e(function(el) {
+//			el.into(box);
+//		});
+		T.root.insert(page.root,T.focus);
+	},
+	hide: function(page) { page.root.style({display:'none'}); },
+	load: function(title) {
+		var T = this, el = new El('#'+title),
+			a = anim.a({opacity:0},function(){el.style(this)});
+		//T.pages[title] = 
+	},
+	compile: function(page) { var T = this,
+		text = '';
+		page.e(function(section) {
+			text += section.html()+'\n';
+		});
+		return  text;
+	}, 
+	html: function(name) { var T = this, js = '',
+		html = "<!doctype html><html><head id='head'><meta charset='utf-8'><style>html, body {margin:0;padding:0} [contenteditable=true]:empty:before{content:attr(name);display:block;opacity:.7;}</style></head><body id='root'>";
+		_.e(T.toplevel, function(page) {
+			html += tag('div',T.compile(page),{id:page.id});
+		});
+		html += "</body><script src='https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js'><"+"/script><"+"script>"+js+"<"+"/script>";
+		return  html;
+	},
+	selected: function() { return  (window.getSelection) ? 
+		window.getSelection().getRangeAt(0) :
+		document.selection.createRange();
+	},
+	events: function() {	var T = this; return  {
+		enter: function(e) { _.no(e); 
+			var V = this, linked = T.makelink();
+			if(!linked) {
+				if(text) {
+					if(e.shiftKey) {
+						page.insert('');
+					} else {
+						page.place('');
+					}
+				}	
+			}
+		},
+	    };
+	},
+	format: function(then) {
+		var T = this, height = Math.max(T.menu.height(),T.view.height(),T.editor.height()),
+		width = window.innerWidth - T.menu.width();
+		if(T.editing) {
+			console.log('trans to 1/2',width/2);
+			_.e([T.editor,T.view],function(el){
+				anim.trans(el.a,{
+					width: {to:width/2,then:then},
+				});
+			});
+		} else {
+			console.log('trans to 1',width);
+			anim.trans(T.view.a,{
+				width:{to:width,then:then},
+			});
+		}
+	},
+}),
+main = style = new El("style",{
+	into: "#head",
+	html: ".download{padding:4px;transition: color 1s, background-color 1s;} .download:hover{cursor:pointer;background-color:#000;color:#fff;} .link:hover{cursor:pointer;} .colon{text-align:right;} .error{background-color:#900;color:white} .button{transition: background-color 1s, color 1s; padding:4px;} .button:hover, .button:focus{ cursor:pointer; color:#fff; background-color:#333; } .brief{font-size:.9em;} .field{border-bottom:1px solid gray;padding:4px;}\n",
+}),
+root = new El("#root"),
+//jso = new El("div",{into:root});
+//jsi = new El("div",{into:root,field:'js>',on:{
+//	enter: function(e) {_.no(e); var V = this; 
+//		try { 
+//			var out = eval(V.html());
+//			jso.removeClass('error');
+//			jso.html(out.toString());
+//		} catch(e) {
+//			jso.addClass('error');
+//			jso.html((e.message+'\n----\n'+e.stack).replace(/\n/g,'<br/>'));
+//		}
+//		
+//	},
+//}});
+anim = new Anim();
+_.x(anim.defaults,{
+	opacity: .11,
+	width: 1,
+	left: 1,
+}),
+author = 'me',
+com = new Com(author);
+com.post('/id','text/plain',author,function(id){
+	console.log("com id",id);
+	if(id==='error') {
+		console.log("couldn't load id for "+author);
+	}
+	if(id === '0') {
+		console.log('no user named '+author);
+		com.ids = 0;
+	} else {
+		com.ids = parseInt(id);
+	}
+});
+//form = new Form(root);
+//form = new Form(root);
+var
+essay = new Essay(root,com);
+var anel = new El("div",{
+	into:"#root",
+	html:"this",
+}),
+s = {opacity:1},
+a = anim.a(s,function(){anel.style(this)});
+anel.style(s);
+
+//doc = new Doc(root);
+//doc.types.field = {
+//	gen: function(field,el) { 
+//		var c = el.content = field.endsWith('..') ?
+//			new HTML(el,{
+//				elopts: {
+//					field:field,
+//					on: {
+//						enter: function(e) { _.no(e); var V = this;
+//							if(!e.shiftKey) {
+//								if(V.html() === '') {
+//									T.shift('down');
+//								} else {
+//									c.place();
+//								}									
+//							} else {
+//								c.insert();
+//							}
+//						},
+//					},
+//				},
+//			}) :
+//			new El("div",{field:field,into:el});
+//		if(c instanceof HTML) c.first();
+//		console.log("content",c);
+//	},
+//};
+//doc.standard = field;//
+
+//doc.first('field');
+//doc.last('last');
+//doc.insert('middle..');
+//doc.html.e(function(el) {
+//	console.log(el.html());
+//});
+
+//site = new Site(root);
+//root.on({resize: function(e) {
+//	site.format();
+//}}); va;</script>
