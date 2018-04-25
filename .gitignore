@@ -1,1 +1,4 @@
 /node_modules
+/devdata
+/config
+package-lock.json
